@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Telegram Backup — Sign in</title>
+<style>
+  :root {
+    --bg-1: #0d1733;
+    --bg-2: #1a2452;
+    --accent: #2ea6ff;
+    --accent-2: #50c8ff;
+    --text: #f5f7ff;
+    --muted: #9ba3c4;
+    --card: rgba(255, 255, 255, 0.06);
+    --border: rgba(255, 255, 255, 0.10);
+    --error: #ff6b6b;
+    --ok: #51d889;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    min-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 20% 10%, #1f3173 0%, transparent 45%),
+      radial-gradient(circle at 80% 90%, #122062 0%, transparent 45%),
+      linear-gradient(135deg, var(--bg-1), var(--bg-2));
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px 28px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+    backdrop-filter: blur(14px);
+  }
+  .logo {
+    width: 64px; height: 64px; margin: 0 auto 16px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 25px rgba(46, 166, 255, 0.4);
+  }
+  .logo svg { width: 36px; height: 36px; fill: white; }
+  h1 {
+    text-align: center; font-size: 22px; font-weight: 600;
+    margin: 0 0 4px; letter-spacing: -0.01em;
+  }
+  .subtitle {
+    text-align: center; color: var(--muted);
+    font-size: 14px; margin: 0 0 24px;
+  }
+  .step {
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+  .step.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  label {
+    display: block;
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,0.25);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  input:focus {
+    border-color: var(--accent);
+    background: rgba(0,0,0,0.35);
+  }
+  input::placeholder { color: rgba(255,255,255,0.35); }
+  button {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    font-size: 16px; font-weight: 600;
+    border-radius: 12px; border: none;
+    color: #061325;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    cursor: pointer;
+    transition: transform 0.05s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 8px 18px rgba(46, 166, 255, 0.35);
+  }
+  button:hover { box-shadow: 0 10px 24px rgba(46, 166, 255, 0.5); }
+  button:active { transform: translateY(1px); }
+  button[disabled] { opacity: 0.6; cursor: not-allowed; }
+  .hint {
+    margin-top: 14px; font-size: 12px;
+    color: var(--muted); text-align: center; line-height: 1.5;
+  }
+  .alert {
+    margin-top: 14px; padding: 12px 14px;
+    border-radius: 10px; font-size: 13px; line-height: 1.4;
+    display: none;
+  }
+  .alert.error { background: rgba(255,107,107,0.12); color: var(--error);
+                 border: 1px solid rgba(255,107,107,0.3); }
+  .alert.ok    { background: rgba(81,216,137,0.12);  color: var(--ok);
+                 border: 1px solid rgba(81,216,137,0.3); }
+  .success-card {
+    text-align: center;
+    padding: 8px 0 4px;
+  }
+  .success-icon {
+    width: 64px; height: 64px; margin: 0 auto 16px;
+    border-radius: 50%;
+    background: rgba(81, 216, 137, 0.15);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .success-icon svg { width: 36px; height: 36px; stroke: var(--ok); }
+  .username {
+    margin-top: 8px;
+    font-size: 18px; font-weight: 600;
+  }
+  .footer {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px; margin-right: 8px;
+    vertical-align: middle;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74
+                 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33
+                 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6
+                 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+      </svg>
+    </div>
+    <h1>Telegram Backup</h1>
+    <p class="subtitle" id="subtitle">Sign in with your phone to start</p>
+
+    <!-- Step 1: phone -->
+    <form class="step active" id="step-phone" onsubmit="onPhone(event)">
+      <label for="phone">Phone number</label>
+      <input id="phone" type="tel" placeholder="+95 9XX XXX XXXX"
+             autocomplete="tel" required />
+      <button type="submit" id="btn-phone">Send code</button>
+      <p class="hint">
+        Telegram will send a one-time code to your Telegram app
+        (or via SMS if not logged in elsewhere).
+      </p>
+      <div class="alert error" id="err-phone"></div>
+    </form>
+
+    <!-- Step 2: code -->
+    <form class="step" id="step-code" onsubmit="onCode(event)">
+      <label for="code">Verification code</label>
+      <input id="code" type="text" inputmode="numeric"
+             pattern="[0-9 ]*" placeholder="12345"
+             autocomplete="one-time-code" required />
+      <button type="submit" id="btn-code">Verify</button>
+      <p class="hint">Enter the 5-digit code from Telegram.</p>
+      <div class="alert error" id="err-code"></div>
+    </form>
+
+    <!-- Step 3: 2FA password -->
+    <form class="step" id="step-pw" onsubmit="onPassword(event)">
+      <label for="pw">Two-step password</label>
+      <input id="pw" type="password" placeholder="Your Telegram password"
+             autocomplete="current-password" required />
+      <button type="submit" id="btn-pw">Sign in</button>
+      <p class="hint">Your account has Two-Step Verification enabled.</p>
+      <div class="alert error" id="err-pw"></div>
+    </form>
+
+    <!-- Step 4: success -->
+    <div class="step" id="step-done">
+      <div class="success-card">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="3"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="5 12 10 17 19 7"></polyline>
+          </svg>
+        </div>
+        <p style="margin:0;color:var(--muted);font-size:14px;">Signed in as</p>
+        <p class="username" id="me">@user</p>
+        <a href="chat" style="display:inline-block;margin-top:20px;padding:13px 28px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#061325;font-weight:600;font-size:15px;border-radius:12px;text-decoration:none;box-shadow:0 8px 18px rgba(46,166,255,.35);">
+          💬 View Backup Chats
+        </a>
+        <p class="hint" style="margin-top:14px;">
+          The backup userbot is running. Open Telegram and chat with your bot to manage targets.
+        </p>
+        <button id="btn-logout" onclick="onLogout()"
+          style="margin-top:14px;background:rgba(255,107,107,0.15);color:var(--error);border:1px solid rgba(255,107,107,0.3);box-shadow:none;font-size:14px;font-weight:500;padding:11px;">
+          🔄 Switch Account (Logout)
+        </button>
+        <div class="alert error" id="err-logout"></div>
+      </div>
+    </div>
+
+    <div class="footer">end-to-end via Telegram MTProto</div>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // Read ?uid= from the URL — set by the bot's /start command.
+  // This tells the server which user's session to create.
+  const uid = new URLSearchParams(location.search).get('uid') || '';
+
+  function show(id) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    $(id).classList.add('active');
+  }
+  function err(id, msg) {
+    const el = $(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function clearErr(id) { $(id).style.display = 'none'; }
+  function loading(btnId, label, on) {
+    const b = $(btnId);
+    if (on) {
+      b.dataset.label = b.textContent;
+      b.disabled = true;
+      b.innerHTML = '<span class="spinner"></span>' + label;
+    } else {
+      b.disabled = false;
+      b.textContent = b.dataset.label || label;
+    }
+  }
+
+  async function post(url, body) {
+    // Always include uid so the server knows which session to use.
+    if (uid) body.uid = uid;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+    return data;
+  }
+
+  // Build API base relative to this page so it works both at
+  // /telegram-login/ (proxy) and at the direct :5000 URL.
+  const base = window.location.pathname.replace(/\/?$/, '/');
+
+  // Show a small badge when a uid is present so the user knows whose account.
+  if (uid) {
+    const badge = document.createElement('p');
+    badge.style.cssText =
+      'text-align:center;font-size:12px;color:var(--muted);margin:-12px 0 16px;';
+    badge.textContent = `Session ID: ${uid}`;
+    document.querySelector('.card').insertBefore(
+      badge,
+      document.querySelector('.step')
+    );
+  }
+
+  async function onPhone(e) {
+    e.preventDefault();
+    clearErr('err-phone');
+    const phone = $('phone').value.trim();
+    loading('btn-phone', 'Sending...', true);
+    try {
+      await post(base + 'login/start', { phone });
+      $('subtitle').textContent = 'Enter the code sent to your Telegram';
+      show('step-code');
+      setTimeout(() => $('code').focus(), 100);
+    } catch (ex) {
+      err('err-phone', ex.message);
+    } finally {
+      loading('btn-phone', 'Send code', false);
+    }
+  }
+
+  async function onCode(e) {
+    e.preventDefault();
+    clearErr('err-code');
+    const code = $('code').value.replace(/\s+/g, '');
+    loading('btn-code', 'Verifying...', true);
+    try {
+      const r = await post(base + 'login/code', { code });
+      if (r.need_password) {
+        $('subtitle').textContent = 'Two-Step Verification';
+        show('step-pw');
+        setTimeout(() => $('pw').focus(), 100);
+      } else {
+        $('me').textContent = '@' + (r.username || 'signed in');
+        $('subtitle').textContent = "You're all set!";
+        show('step-done');
+      }
+    } catch (ex) {
+      err('err-code', ex.message);
+    } finally {
+      loading('btn-code', 'Verify', false);
+    }
+  }
+
+  async function onPassword(e) {
+    e.preventDefault();
+    clearErr('err-pw');
+    const password = $('pw').value;
+    loading('btn-pw', 'Signing in...', true);
+    try {
+      const r = await post(base + 'login/password', { password });
+      $('me').textContent = '@' + (r.username || 'signed in');
+      $('subtitle').textContent = "You're all set!";
+      show('step-done');
+    } catch (ex) {
+      err('err-pw', ex.message);
+    } finally {
+      loading('btn-pw', 'Sign in', false);
+    }
+  }
+
+  async function onLogout() {
+    clearErr('err-logout');
+    const btn = $('btn-logout');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Logging out...';
+    try {
+      await post(base + 'logout', {});
+      $('subtitle').textContent = 'Sign in with your phone to start';
+      $('phone').value = '';
+      show('step-phone');
+      setTimeout(() => $('phone').focus(), 100);
+    } catch (ex) {
+      $('err-logout').textContent = ex.message;
+      $('err-logout').style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '🔄 Switch Account (Logout)';
+    }
+  }
+
+  // If already signed in (for this uid), skip straight to the success screen.
+  (async function checkStatus() {
+    try {
+      const qs = uid ? `?uid=${uid}` : '';
+      const r = await fetch(base + 'login/status' + qs).then(r => r.json());
+      if (r.signed_in) {
+        $('me').textContent = r.username ? ('@' + r.username) : 'your account';
+        $('subtitle').textContent = "You're already signed in";
+        show('step-done');
+      }
+    } catch (_) {}
+  })();
+</script>
+</body>
+</html>

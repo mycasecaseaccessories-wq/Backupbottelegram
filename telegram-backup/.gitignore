@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local data
+backup.db
+sessions/
+uploads/
+exports/
+*.session
+*.session-journal

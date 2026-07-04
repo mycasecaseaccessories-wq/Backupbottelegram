@@ -1,0 +1,20 @@
+kind = "web"
+previewPath = "/telegram-login"
+title = "Telegram Backup"
+version = "1.0.0"
+
+[[services]]
+localPort = 5000
+name = "Telegram Backup"
+paths = ["/telegram-login"]
+
+[services.development]
+run = "python run.py"
+waitForPort = 5000
+
+[services.development.env]
+PORT = "5000"
+
+[services.production]
+build = "python -m venv .venv && .venv/bin/pip install -r requirements.txt"
+run = ".venv/bin/python run.py"
