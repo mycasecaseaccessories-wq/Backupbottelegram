@@ -4,6 +4,8 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
+The active application is **Telegram Backup** (`telegram-backup/`) — a Python app that backs up Telegram chats to a private channel, detects deleted messages, and provides a control bot + Flask REST API + web login UI. Run via the "Telegram Backup" workflow (`python telegram-backup/run.py`, port 5000). Requires secrets: `API_ID`, `API_HASH`, `BOT_TOKEN`, `BACKUP_CHANNEL_ID`, `ADMIN_CHAT_ID`. Python deps are managed with uv (pyproject.toml); note python-telegram-bot 13.15 pins apscheduler==3.6.3.
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces
