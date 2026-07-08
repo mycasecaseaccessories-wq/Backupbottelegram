@@ -47,6 +47,15 @@ logging.basicConfig(
 ASK_TARGET, ASK_PAYMENT_SCREENSHOT = range(2)
 
 
+def _md(text) -> str:
+    """Escape legacy-Markdown special chars so usernames with '_' etc. don't
+    break Telegram's entity parser."""
+    s = str(text)
+    for ch in ("_", "*", "`", "["):
+        s = s.replace(ch, "\\" + ch)
+    return s
+
+
 # ---------------------------------------------------------------------------
 # Menu
 # ---------------------------------------------------------------------------
@@ -90,7 +99,7 @@ def start(update: Update, context: CallbackContext) -> None:
         status_msg = "⚠️ You haven't signed in with your Telegram account yet.\n"
 
     update.message.reply_text(
-        f"Hi {user.first_name}! 👋\n\n"
+        f"Hi {_md(user.first_name)}! 👋\n\n"
         f"{status_msg}"
         f"{login_line}\n"
         "Pick an option below:",
@@ -192,7 +201,7 @@ def handle_target_text(update: Update, context: CallbackContext):
     added = db.add_target(record["id"], target)
     if added:
         update.message.reply_text(
-            f"Added @{target.lstrip('@')} to your backup targets.\n\n"
+            f"Added @{_md(target.lstrip('@'))} to your backup targets.\n\n"
             "I'll start backing up *all old messages* with this chat in "
             "the background, and every new message from now on will also "
             "be forwarded to the backup channel.",
@@ -314,7 +323,7 @@ def cmd_history(update: Update, context: CallbackContext):
     )
 
     update.message.reply_text(
-        f"*Backup history for @{target}*\n\n"
+        f"*Backup history for @{_md(target)}*\n\n"
         f"Total backed up    : {stats['total']}\n"
         f"  • Received (သူပို့): {stats['received']}\n"
         f"  • Sent (ငါပို့)    : {stats['sent']}\n"
@@ -499,7 +508,7 @@ def cmd_setchannel(update: Update, context: CallbackContext):
     ok = db.set_target_channel(record["id"], target, channel_id)
     if ok:
         update.message.reply_text(
-            f"✅ @{target} ၏ message များကို channel `{channel_id}` သို့ ပို့မည်။\n\n"
+            f"✅ @{_md(target)} ၏ message များကို channel `{channel_id}` သို့ ပို့မည်။\n\n"
             f"မှတ်ချက်: သင့် Telegram account ကို ထို channel ၏ member/admin အဖြစ် ထည့်ထားရပါမည်။",
             parse_mode="Markdown",
         )
@@ -521,7 +530,7 @@ def cmd_listtargets(update: Update, context: CallbackContext):
     for t in targets:
         ch = t.get("backup_channel_id")
         ch_str = f"`{ch}`" if ch else "default channel"
-        lines.append(f"• @{t['target_username']} → {ch_str}")
+        lines.append(f"• @{_md(t['target_username'])} → {ch_str}")
     update.message.reply_text(
         "*သင့် backup targets:*\n\n" + "\n".join(lines),
         parse_mode="Markdown",
