@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
@@ -151,6 +152,7 @@ class UserSession:
         self.session_path = os.path.join(SESSION_DIR, session_name)
         self.client: Optional[TelegramClient] = None
         self._channel_cache: Dict[int, object] = {}
+        self._backfill_cooldown: Dict[int, float] = {}
         self.me = None
 
     # ------------------------------------------------------------------
@@ -163,21 +165,43 @@ class UserSession:
 
     async def _dest_channel(self, target_username: str) -> int:
         # Priority: per-target channel > user default channel > global default
-        per_target = db.get_target_channel(target_username)
+        per_target = db.get_target_channel(target_username, self.user_db_id)
         if per_target:
             cid = per_target
         else:
             user_ch = db.get_user_channel(self.user_db_id)
             cid = user_ch if user_ch else BACKUP_CHANNEL_ID
         if cid not in self._channel_cache:
-            try:
-                self._channel_cache[cid] = await self.client.get_entity(cid)
-                log.info("[%s] Channel resolved: %s", self.session_name,
-                         getattr(self._channel_cache[cid], "title", cid))
-            except Exception as exc:
-                log.error("[%s] Cannot resolve channel %s: %s",
-                          self.session_name, cid, exc)
+            ent = await self._resolve_channel(cid)
+            if ent is not None:
+                self._channel_cache[cid] = ent
         return cid
+
+    async def _resolve_channel(self, cid: int):
+        """Resolve a channel entity by ID, refreshing dialogs if needed.
+
+        Telethon cannot resolve a channel by numeric ID unless its
+        access-hash is already in the session cache. Fetching dialogs
+        populates that cache, so we retry once after doing so."""
+        try:
+            ent = await self.client.get_entity(cid)
+            log.info("[%s] Channel resolved: %s", self.session_name,
+                     getattr(ent, "title", cid))
+            return ent
+        except Exception:
+            pass
+        # Fallback: populate entity cache from the account's dialogs, retry.
+        try:
+            await self.client.get_dialogs()
+            ent = await self.client.get_entity(cid)
+            log.info("[%s] Channel resolved after dialog refresh: %s",
+                     self.session_name, getattr(ent, "title", cid))
+            return ent
+        except Exception as exc:
+            log.error("[%s] Cannot resolve channel %s: %s. "
+                      "Userbot account must be a member of this channel.",
+                      self.session_name, cid, exc)
+            return None
 
     # ------------------------------------------------------------------
     async def start(self) -> bool:
@@ -195,15 +219,12 @@ class UserSession:
                  getattr(self.me, "username", "?"),
                  getattr(self.me, "id", "?"))
 
-        # Pre-cache default backup channel
-        try:
-            ent = await self.client.get_entity(BACKUP_CHANNEL_ID)
-            self._channel_cache[BACKUP_CHANNEL_ID] = ent
-            log.info("[%s] Default backup channel: %s",
-                     self.session_name, getattr(ent, "title", BACKUP_CHANNEL_ID))
-        except Exception as exc:
-            log.error("[%s] Cannot resolve default backup channel: %s",
-                      self.session_name, exc)
+        # Pre-cache default backup channel (populates dialog entity cache too,
+        # which lets per-target channels resolve by numeric ID afterwards).
+        if BACKUP_CHANNEL_ID:
+            ent = await self._resolve_channel(BACKUP_CHANNEL_ID)
+            if ent is not None:
+                self._channel_cache[BACKUP_CHANNEL_ID] = ent
 
         # Auto-enable backup so new messages are forwarded immediately
         db.set_backup_enabled(self.telegram_id, True)
@@ -323,9 +344,11 @@ class UserSession:
         in_progress: set = set()
         while True:
             try:
+                now = time.time()
                 pending = [t for t in db.pending_backfill_targets()
                            if t["user_id"] == self.user_db_id
-                           and t["id"] not in in_progress]
+                           and t["id"] not in in_progress
+                           and self._backfill_cooldown.get(t["id"], 0) <= now]
                 for t in pending:
                     in_progress.add(t["id"])
 
@@ -352,15 +375,53 @@ class UserSession:
 
         db.update_target_id(username, getattr(entity, "id", 0))
         dest = await self._dest_channel(username)
+        # Abort (without marking backfilled) if the backup channel can't be
+        # resolved — otherwise we'd loop over history forwarding nothing.
+        # It stays pending so a later retry works once the account joins it.
+        if dest not in self._channel_cache:
+            self._backfill_cooldown[target["id"]] = time.time() + 300
+            log.error("[%s] Backfill @%s aborted: backup channel %s "
+                      "unresolved. Add the userbot account to that channel. "
+                      "Retrying in 5 min.",
+                      self.session_name, username, dest)
+            return
         count = 0
         skipped = 0
         async for message in self.client.iter_messages(entity, reverse=True):
             if not message:
                 continue
 
-            # Dedup: skip messages already logged/forwarded
+            # Dedup: skip messages already forwarded
             if db.is_message_logged(self.user_db_id, message.chat_id, message.id):
                 skipped += 1
+                continue
+
+            forwarded = False
+            try:
+                await self.client.forward_messages(dest, message)
+                forwarded = True
+            except FloodWaitError as fw:
+                log.warning("[%s] Flood wait %ss for @%s",
+                            self.session_name, fw.seconds, username)
+                await self._flood_wait_countdown(
+                    username, fw.seconds + 1, target["user_id"])
+                try:
+                    await self.client.forward_messages(dest, message)
+                    forwarded = True
+                except Exception as exc:
+                    log.error("[%s] Retry after flood wait failed for msg %s: %s",
+                              self.session_name, message.id, exc)
+            except (ChannelInvalidError, ChannelPrivateError):
+                log.error("[%s] Cannot forward to channel=%s", self.session_name, dest)
+                break
+            except Exception as exc:
+                log.warning("[%s] Forward failed msg %s: %s",
+                            self.session_name, message.id, exc)
+
+            # Only record the message once it has actually been forwarded, so a
+            # failed forward can be retried on the next backfill instead of
+            # being permanently skipped by the dedup check.
+            if not forwarded:
                 continue
 
             media_type = _detect_media_type(message)
@@ -376,24 +437,6 @@ class UserSession:
                 media_type=media_type,
                 action=direction,
             )
-            try:
-                await self.client.forward_messages(dest, message)
-            except FloodWaitError as fw:
-                log.warning("[%s] Flood wait %ss for @%s",
-                            self.session_name, fw.seconds, username)
-                await self._flood_wait_countdown(
-                    username, fw.seconds + 1, target["user_id"])
-                try:
-                    await self.client.forward_messages(dest, message)
-                except Exception as exc:
-                    log.error("[%s] Retry after flood wait failed for msg %s: %s",
-                              self.session_name, message.id, exc)
-            except (ChannelInvalidError, ChannelPrivateError):
-                log.error("[%s] Cannot forward to channel=%s", self.session_name, dest)
-                break
-            except Exception as exc:
-                log.warning("[%s] Forward failed msg %s: %s",
-                            self.session_name, message.id, exc)
             count += 1
             if count % 20 == 0:
                 await asyncio.sleep(1)

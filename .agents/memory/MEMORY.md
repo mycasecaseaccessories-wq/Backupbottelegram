@@ -1,1 +1,2 @@
 - [Duplicate workflow from artifact registration](duplicate-workflow-artifact.md) — phantom auto-restarting workflows come from `<dir>/.replit-artifact`; delete that dir to unregister.
+- [Telethon channel resolution](telethon-channel-resolution.md) — numeric channel IDs need get_dialogs() to cache access-hash; log-after-forward for dedup; scope target-channel lookup by user_id.

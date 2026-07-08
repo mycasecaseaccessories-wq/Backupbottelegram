@@ -309,15 +309,27 @@ def set_target_channel(
         return cur.rowcount > 0
 
 
-def get_target_channel(target_username: str) -> Optional[int]:
-    """Return the custom channel_id for a target username, or None."""
+def get_target_channel(
+    target_username: str, user_id: Optional[int] = None
+) -> Optional[int]:
+    """Return the custom channel_id for a target username, or None.
+
+    When user_id is given, the lookup is scoped to that user so that
+    multiple users owning a target with the same username don't collide."""
     target_username = target_username.lstrip("@").lower()
     with get_conn() as c:
-        row = c.execute(
-            "SELECT backup_channel_id FROM targets "
-            "WHERE target_username = ? LIMIT 1",
-            (target_username,),
-        ).fetchone()
+        if user_id is not None:
+            row = c.execute(
+                "SELECT backup_channel_id FROM targets "
+                "WHERE target_username = ? AND user_id = ? LIMIT 1",
+                (target_username, user_id),
+            ).fetchone()
+        else:
+            row = c.execute(
+                "SELECT backup_channel_id FROM targets "
+                "WHERE target_username = ? LIMIT 1",
+                (target_username,),
+            ).fetchone()
         return row["backup_channel_id"] if row else None
 
 
