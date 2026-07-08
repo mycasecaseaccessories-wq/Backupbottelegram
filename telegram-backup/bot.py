@@ -537,6 +537,35 @@ def cmd_listtargets(update: Update, context: CallbackContext):
     )
 
 
+def cmd_removechat(update: Update, context: CallbackContext):
+    """Remove a chat/target from the user's backup list."""
+    user = update.effective_user
+    record = db.upsert_user(user.id, user.username)
+
+    if not context.args:
+        update.message.reply_text(
+            "ဘယ် chat ကို ဖျက်မလဲ ဆိုတာ ထည့်ပါ။\n"
+            "Example: /removechat @username\n\n"
+            "လက်ရှိ target list ကို /targets နဲ့ ကြည့်နိုင်ပါတယ်။"
+        )
+        return
+
+    target = context.args[0].lstrip("@").lower()
+    removed = db.remove_target(record["id"], target)
+    if removed:
+        update.message.reply_text(
+            f"🗑️ @{_md(target)} ကို backup target list ထဲက ဖျက်လိုက်ပါပြီ။\n\n"
+            "အခုကစပြီး သူ့ message အသစ်တွေကို backup မလုပ်တော့ပါ။ "
+            "(ယခင် backup လုပ်ပြီးသား message တွေတော့ backup channel ထဲ ကျန်ပါမည်။)",
+            parse_mode="Markdown",
+        )
+    else:
+        update.message.reply_text(
+            f"@{_md(target)} ကို သင့် target list ထဲ မတွေ့ပါ။",
+            parse_mode="Markdown",
+        )
+
+
 def _run_async(coro) -> str:
     """Run an async coroutine on the session manager's event loop (blocking)."""
     loop = sm.get_manager_loop()
@@ -660,6 +689,7 @@ def cmd_help(update: Update, context: CallbackContext):
         "🎯 *Target စီမံခြင်း*\n"
         "/start → Add Chat — Chat/user ထည့်ပါ\n"
         "/targets — သင့် target list ကြည့်ပါ\n"
+        "/removechat @username — ထို target ကို list ထဲက ဖျက်ပါ\n"
         "/history @username — ထို target ၏ backup ကိုင်စီရင်မှု ကြည့်ပါ\n"
         "/backfill @username — ထို target ၏ ဟောင်းသော history ပြန်ပို့ပါ\n"
         "/backfill — Target အကုန်၏ history ပြန်ပို့ပါ\n\n"
@@ -780,6 +810,7 @@ def run_bot() -> None:
     dp.add_handler(CommandHandler("setchannel", cmd_setchannel))
     dp.add_handler(CommandHandler("setmychannel", cmd_setmychannel))
     dp.add_handler(CommandHandler("targets", cmd_listtargets))
+    dp.add_handler(CommandHandler("removechat", cmd_removechat))
     dp.add_handler(CommandHandler("logout", cmd_logout))
     dp.add_handler(CommandHandler("clearchannel", cmd_clearchannel))
     dp.add_handler(CommandHandler("sendzip", cmd_sendzip))
@@ -791,6 +822,7 @@ def run_bot() -> None:
             BotCommand("start",        "Bot ဖွင့်ပြီး login link ရယူပါ"),
             BotCommand("help",         "Command guide အပြည့်အစုံ ကြည့်ပါ"),
             BotCommand("targets",      "Backup target list ကြည့်ပါ"),
+            BotCommand("removechat",   "Backup target တစ်ခု ဖျက်ပါ"),
             BotCommand("history",      "Target တစ်ခု၏ backup ကိုင်စီရင်မှု"),
             BotCommand("backfill",     "ဟောင်းသော message history ပြန်ပို့ပါ"),
             BotCommand("setmychannel", "Default backup channel သတ်မှတ်ပါ"),

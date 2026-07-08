@@ -214,6 +214,26 @@ def add_target(user_id: int, target_username: str) -> bool:
             return False
 
 
+def target_exists(user_id: int, target_username: str) -> bool:
+    target_username = target_username.lstrip("@").lower()
+    with get_conn() as c:
+        row = c.execute(
+            "SELECT 1 FROM targets WHERE user_id = ? AND target_username = ?",
+            (user_id, target_username),
+        ).fetchone()
+        return row is not None
+
+
+def remove_target(user_id: int, target_username: str) -> bool:
+    target_username = target_username.lstrip("@").lower()
+    with get_conn() as c:
+        cur = c.execute(
+            "DELETE FROM targets WHERE user_id = ? AND target_username = ?",
+            (user_id, target_username),
+        )
+        return cur.rowcount > 0
+
+
 def list_targets(user_id: Optional[int] = None) -> list:
     with get_conn() as c:
         if user_id is None:

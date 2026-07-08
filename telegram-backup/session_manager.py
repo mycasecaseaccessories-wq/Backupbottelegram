@@ -397,6 +397,11 @@ class UserSession:
             count += 1
             if count % 20 == 0:
                 await asyncio.sleep(1)
+                # Abort if the user removed this target mid-backfill.
+                if not db.target_exists(target["user_id"], username):
+                    log.info("[%s] Backfill aborted @%s (target removed).",
+                             self.session_name, username)
+                    return
         db.mark_backfilled(target["id"])
         log.info("[%s] Backfill done @%s (%s new, %s skipped).",
                  self.session_name, username, count, skipped)
