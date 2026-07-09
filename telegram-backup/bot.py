@@ -339,6 +339,14 @@ def cmd_backfill(update: Update, context: CallbackContext):
     user = update.effective_user
     record = db.upsert_user(user.id, user.username)
 
+    if not record.get("session_name"):
+        update.message.reply_text(
+            "❌ ဒီ account က Telegram login မဝင်ရသေးပါ။\n\n"
+            "Backup လုပ်ဖို့ သင့် account ကို အရင် login ဝင်ပေးရပါမယ်။ "
+            "/start နှိပ်ပြီး Login လုပ်ပါ။"
+        )
+        return
+
     if context.args:
         target = context.args[0].lstrip("@").lower()
         ok = db.reset_backfill_for(record["id"], target)
