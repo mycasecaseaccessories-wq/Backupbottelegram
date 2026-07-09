@@ -237,6 +237,16 @@ async def run_userbot() -> None:
         log.warning("Userbot NOT signed in. Open the app to log in:")
         log.warning("  %s", login_url)
         log.warning("=" * 60)
+        # Start every OTHER user's session while waiting for the legacy
+        # login. Skip "userbot" itself - its session file is held open by
+        # the temporary login client above (two clients on one SQLite
+        # session file cause "database is locked" corruption).
+        for u in db.get_users_with_sessions():
+            if u["session_name"] != "userbot":
+                await sm.manager.start_user(
+                    u["id"], u["telegram_id"], u["session_name"]
+                )
+        log.info("Waiting for legacy userbot login; other sessions running.")
         while not await client.is_user_authorized():
             await asyncio.sleep(3)
 
